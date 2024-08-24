@@ -1,7 +1,7 @@
 const Inventory = require("../model/taskModel");
 const QRCode = require("qrcode");
 const { v4: uuidv4 } = require("uuid");
-const Jimp = require("jimp");
+
 
 const CreateInventory = async (req, res) => {
   const { name, date, quantity,  } = req.body;
@@ -32,43 +32,58 @@ const FindInventory = async (req, res) => {
   try {
     const allInventory = await Inventory.find();
     res.status(200).json({ message: "FindALl Inventory", allInventory });
-    console.log(allInventory, "allInventory");
+   
   } catch (error) {
     console.error("Error fetching inventory:", error);
   }
 };
 
 const jsQR = require("jsqr");
+const Jimp = require("jimp");
 const fs = require("fs");
-const { createCanvas, loadImage } = require("canvas");
 
 const ScanInventory = async (req, res) => {
+  console.log("ScanInventory function called");
   try {
     const filePath = req.file.path;
-    
-    const image = await loadImage(filePath);
-    const canvas = createCanvas(image.width, image.height);
-    ctx.drawImage(image, 0, 0, image.width, image.height);
+      // console.log(filePath,"========")
+    // Load the image using Jimp
+    const image = await Jimp.read(filePath);
+    const width = image.bitmap.width;
+    const height = image.bitmap.height;
 
-    const imageData = ctx.getImageData(0, 0, image.width, image.height);
+    // Create a pixel array
+    const imageData = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = (width * y + x) << 2;
+        const rgba = Jimp.intToRGBA(image.getPixelColor(x, y));
+        imageData[idx] = rgba.r; // Red
+        imageData[idx + 1] = rgba.g; // Green
+        imageData[idx + 2] = rgba.b; // Blue
+        imageData[idx + 3] = rgba.a; // Alpha
+      }
+    }
 
-    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    // Decode the QR code
+    const code = jsQR(imageData, width, height);
+    console.log(code.data,"--------code")
 
     if (code) {
       const inventory = await Inventory.findOne({ qrIdentifier: code.data });
-    
+      // console.log(inventory,"invetrory")
+
       if (inventory) {
         if (inventory.pandingItems > 0) {
-          
           inventory.status = "Received";
-          inventory.dispatchQuantity += 1; 
-          inventory.dispatchDate = new Date(); 
-          inventory.pandingItems -= 1; 
-    
-          await inventory.save(); 
+          inventory.dispatchQuantity += 1;
+          inventory.dispatchDate = new Date();
+          inventory.pandingItems -= 1;
+
+          await inventory.save();
           res.json({ qrCodeData: code.data });
         } else {
-          res.status(400).json({ message: " All items have been dispatched, no pending items left." });
+          res.status(400).json({ message: "All items have been dispatched, no pending items left." });
         }
       } else {
         res.status(404).json({ message: "QR code not found or invalid." });
@@ -76,12 +91,13 @@ const ScanInventory = async (req, res) => {
     } else {
       res.status(400).json({ message: "QR code not found or invalid." });
     }
-    
+
   } catch (error) {
     console.error("Error scanning QR code:", error);
     res.status(500).json({ message: "Error scanning QR code." });
   }
 };
+
 
 
 const Deleteinventory =  async (req, res) => {
