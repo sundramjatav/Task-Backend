@@ -11,12 +11,6 @@
         "src": "/(.*)",
         "dest": "bin/www"
       }
-    ],
-    "env": {
-        "MONGO_URI":"mongodb+srv://sundramjatav0577:jatav123@cluster0.dwc3j.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
-        "JWT_SECRET":"your_jwt_secret_key",
-        "FRONT_END_URL":"https://frontend-task-teal-six.vercel.app",
-        "PORT":"3000"
-    }
+    ]
   }
   
